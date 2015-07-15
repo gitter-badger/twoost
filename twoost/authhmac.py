@@ -30,6 +30,14 @@ except ImportError:
     from twisted.web.client import _URI as URI
 
 
+__all__ = [
+    'AuthHMACAgent',
+    'AuthHMACCredentials',
+    'AuthHMACCredentialFactory',
+    'protectResourceWithHMAC',
+]    
+
+
 @zope.interface.implementer(IAgent)
 class AuthHMACAgent(object):
 
@@ -212,7 +220,7 @@ class _SingleResourceRealm(object):
         raise NotImplementedError
 
 
-def protectResource(resource, accessKey, secretKey, realm=None):
+def protectResourceWithHMAC(resource, accessKey, secretKey, realm=None):
 
     from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
     from twisted.web.guard import HTTPAuthSessionWrapper
@@ -226,3 +234,7 @@ def protectResource(resource, accessKey, secretKey, realm=None):
 
     cred_factory = AuthHMACCredentialFactory(realm or 'twoost-app')
     return HTTPAuthSessionWrapper(portal, [cred_factory])
+
+
+# deprectated
+protectResource = protectResourceWithHMAC

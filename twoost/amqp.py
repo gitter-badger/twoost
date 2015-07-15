@@ -44,8 +44,9 @@ logger = logging.getLogger(__name__)
 __all__ = [
     'AMQPMessage',
     'AMQPService',
+    'AMQPCollectionService',
     'IAMQPSchema',
-    'IAMQPSchemaBuilder'
+    'IAMQPSchemaBuilder',
 ]
 
 
@@ -861,14 +862,6 @@ class schemaFromDict(object):
 
 
 components.registerAdapter(schemaFromDict, dict, IAMQPSchema)
-
-
-def loadSchema(schema):
-    if isinstance(schema, basestring):
-        schema = reflect.namedAny(schema)
-    if not hasattr(schema, 'declareSchema'):
-        schema = IAMQPSchema(schema)
-    return schema
 
 
 # --- integration with app-framework

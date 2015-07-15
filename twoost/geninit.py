@@ -28,6 +28,11 @@ else:
     imap = map
 
 
+__all__ = [
+    'Worker',
+]
+
+
 class GenInit(object):
 
     appname = required_attr
@@ -44,6 +49,9 @@ class GenInit(object):
 
     flock_timeout = 90
     run_worker_timeout = 60
+
+    def create_worker_command_line(self, workerid):
+        raise NotImplementedError
 
     def __init__(self):
         assert not self.singletone or self.workers == 1
@@ -259,9 +267,6 @@ class GenInit(object):
         self._fire_worker_output_dumping(process.stdout, sys.stdout)
         self._fire_worker_output_dumping(process.stderr, sys.stderr)
         return process.wait(timeout=self.run_worker_timeout)
-
-    def create_worker_command_line(self, workerid):
-        raise NotImplementedError
 
     def worker_process(self, workerid):
 

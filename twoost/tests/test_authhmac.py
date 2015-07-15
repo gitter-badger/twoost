@@ -26,7 +26,7 @@ class TestResource(web.LeafResourceMixin, web.Resource):
 class AuthHMACTest(TestCase):
 
     def setUp(self):
-        self.resource = authhmac.protectResource(TestResource(), "key", "secret")
+        self.resource = authhmac.protectResourceWithHMAC(TestResource(), "key", "secret")
         self.listening_port = reactor.listenTCP(0, web.UnitTestSite(self.resource))
         self.agent = Agent(reactor)
 

@@ -129,7 +129,7 @@ def build_rpcps(app, active_proxies=None):
     from twoost import rpcproxy
     proxies = subdict(settings.RPC_PROXIES, active_proxies)
     logger.debug("build rpc proxies")
-    return attach_service(app, rpcproxy.RPCProxyService(proxies))
+    return attach_service(app, rpcproxy.RPCProxiesCollectionService(proxies))
 
 
 def build_manhole(app, namespace=None):
@@ -185,7 +185,7 @@ def build_memcache(app, active_servers=None):
     from twoost import memcache
     servers = settings.MEMCACHE_SERVERS
     logger.debug("build memcache service, connections %s", servers)
-    return attach_service(app, memcache.MemCacheService(subdict(servers, active_servers)))
+    return attach_service(app, memcache.MemCacheCollectionService(subdict(servers, active_servers)))
 
 
 # --- integration with 'geninit'

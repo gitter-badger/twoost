@@ -21,6 +21,11 @@ except ImportError:
     logger.warning("no module OpenSSL.SSL")
 
 
+__all__ = [
+    'send_mail',
+]
+
+
 def sendMessageFile(
     fromAddress, toAddress,
     messageFile,

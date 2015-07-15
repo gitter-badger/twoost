@@ -18,6 +18,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    'MemCacheCollectionService',
+]  
+
+
 class _MemCacheProtocol(PersistentClientProtocol, MemCacheProtocol):
 
     def __init__(self, timeout=3, max_key_length=250):
@@ -119,7 +124,7 @@ class MemCacheFactory(PersistentClientFactory):
     protocol = MemCacheProtocol
 
 
-class MemCacheService(PersistentClientsCollectionService):
+class MemCacheCollectionService(PersistentClientsCollectionService):
 
     name = 'memcaches'
     factory = MemCacheFactory
@@ -151,3 +156,7 @@ class MemCacheService(PersistentClientsCollectionService):
 
     def multiClient(self, resolveClientNameByKey):
         return _MemCacheMultiClientProxy(self, resolveClientNameByKey)
+
+
+# deprecated
+MemCacheService = MemCacheCollectionService

@@ -16,7 +16,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-__all__ = ['DatabaseService', 'make_dbpool']
+__all__ = [
+    'DatabaseService',
+    'make_dbpool',
+]
 
 
 @zope.interface.implementer(health.IHealthChecker)

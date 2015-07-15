@@ -21,10 +21,13 @@ class DefaultSettings(Config):
 
     WEB_ENDPOINT = prop_lazy(
         lambda: os.path.expandvars("unix:$HOME/run/www/$TWOOST_WORKERID.sock"))
+
     MANHOLE_SOCKET_DIR = prop_lazy(
         lambda: os.path.expandvars("$HOME/run/manhole"))
+
     HEALTHCHECK_SOCKET_DIR = prop_lazy(
         lambda: os.path.expandvars("$HOME/run/health"))
+
     HEALTHCHECK_SOCKET_MODE = 0700
 
     EMAIL_DEFAULT_FROM = prop_lazy(

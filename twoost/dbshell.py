@@ -11,7 +11,9 @@ import tempfile
 from twoost.conf import settings
 
 
-__all__ = ['run_dbshell']
+__all__ = [
+    'run_dbshell',
+]
 
 
 def run_pgsql_dbshell(db):

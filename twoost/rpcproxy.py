@@ -147,7 +147,7 @@ def make_rpc_proxy(params):
 
 # --- integration with twisted app framework
 
-class RPCProxyService(service.MultiService):
+class RPCProxiesCollectionService(service.MultiService):
 
     name = 'rpcps'
 
@@ -168,3 +168,7 @@ class RPCProxyService(service.MultiService):
 
     def __getitem__(self, proxy_name):
         return self.getServiceNamed(proxy_name)
+
+
+# deprecated
+RPCProxyService = RPCProxiesCollectionService

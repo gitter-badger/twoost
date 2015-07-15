@@ -7,6 +7,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    'AnonymousShell',
+    'AnonymousShellFactory',
+]
+
 class AnonymousShell(Shell):
 
     mode = 'Command'

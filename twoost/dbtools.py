@@ -6,7 +6,12 @@ import collections
 import logging
 logger = logging.getLogger(__name__)
 
-__all__ = ['SQL', 'DBUsingMixin', 'single_row', 'single_value']
+__all__ = [
+    'SQL',
+    'DBUsingMixin',
+    'single_row',
+    'single_value',
+]
 
 
 def pure_db_operation(f):

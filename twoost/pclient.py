@@ -12,7 +12,7 @@ import functools
 
 import zope.interface
 
-from twisted.internet import reactor, protocol, endpoints, defer
+from twisted.internet import reactor, protocol, endpoints, defer, interfaces
 from twisted.internet.error import ConnectionClosed
 from twisted.python import failure
 from twisted.application import service
@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     'IPersistentClientProtocol',
+    'NoPersisentClientConnection',
     'PersistentClientProtocol',
     'PersistentClientFactory',
     'PersistentClientService',
-    'NoPersisentClientConnection',
     'PersistentClientsCollectionService',
 ]
 
@@ -38,7 +38,7 @@ class NoPersisentClientConnection(ConnectionClosed):
     pass
 
 
-class IPersistentClientProtocol(zope.interface.Interface):
+class IPersistentClientProtocol(interfaces.IProtocol):
 
     def notifyProtocolReady():
         pass
