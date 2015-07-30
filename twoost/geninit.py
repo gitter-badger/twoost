@@ -703,7 +703,6 @@ class GenInit(object):
 
     def main(self, args=None):
 
-        self.create_dirs()
         parser = self.create_parser()
         lock = self._make_flock()
 
@@ -715,6 +714,7 @@ class GenInit(object):
         command = getattr(self, 'command_' + command_name)
 
         self.print_header()
+        self.create_dirs()
         self._acquire_flock(lock)
         try:
             x = command(**vars(parsed_args))

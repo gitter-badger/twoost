@@ -4,6 +4,6 @@ export PYTHONPATH="$PYTHONPATH:$SCRIPT_DIR/../src"
 python -c '
 import demoapp.app, twoost.dbshell, sys
 demoapp.app.init_demoapp_settings()
-sys.argv[0] = "dbshell"  # hack
+sys.argv[0] = "dbshell"  # fix command help
 twoost.dbshell.main()
 ' "$@"

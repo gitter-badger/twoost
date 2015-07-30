@@ -1,3 +1,12 @@
 #!/bin/sh
+
 SCRIPT_DIR=$(dirname $(readlink -f $0))
-for cmd in "$SCRIPT_DIR"/demoapp-*; do "$cmd" "$@"; done
+result=0
+
+for cmd
+in "$SCRIPT_DIR"/demoapp-*
+do
+    "$cmd" "$@" || result=1
+done
+
+exit $result

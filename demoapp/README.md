@@ -17,7 +17,7 @@ Prepare env:
 
     # copy dev configs
     mkdir -p ~/conf
-    cp -r ./conf/dev/ ~/conf
+    cp -r ./conf/dev/* ~/conf
 
     # link nginx config
     sudo sh -c "echo 'include $HOME/conf/nginx/*.conf;' > /etc/nginx/conf.d/$USER.conf"
