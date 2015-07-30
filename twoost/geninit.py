@@ -19,7 +19,7 @@ import psutil
 
 from twisted.python import reflect, lockfile
 
-from ._misc import required_attr, natural_sorted, mkdir_p
+from ._misc import required_attr, natural_sorted, mkdir_p, overwritable_property
 
 
 if sys.hexversion < 0x3000000:
@@ -97,14 +97,14 @@ class GenInit(object):
         else:
             self.print(" fail")
 
-    @property
+    @overwritable_property
     def default_workerids(self):
         if self.singletone:
             return [self.appname]
         else:
             return imap(self.coerce_workerid, range(self.workers))
 
-    @property
+    @overwritable_property
     def all_possible_workerids(self):
         return imap(self.coerce_workerid, itertools.count())
 

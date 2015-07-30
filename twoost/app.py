@@ -9,7 +9,7 @@ from twisted.application import internet, service
 
 from twoost import log, geninit, _misc
 from twoost.conf import settings
-from twoost._misc import subdict, mkdir_p
+from twoost._misc import subdict, mkdir_p, overwritable_property
 
 import logging
 logger = logging.getLogger(__name__)
@@ -194,15 +194,15 @@ class AppWorker(geninit.Worker):
 
     healthcheck_timeout = 20
 
-    @property
+    @overwritable_property
     def log_dir(self):
         return settings.LOG_DIR
 
-    @property
+    @overwritable_property
     def pid_dir(self):
         return settings.PID_DIR
 
-    @property
+    @overwritable_property
     def workers(self):
         return settings.WORKERS_COUNT.get(self.appname, 1)
 
