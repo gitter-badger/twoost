@@ -923,7 +923,7 @@ class _BaseConsumer(service.Service):
             return
         logger.debug("start service %s", self)
         service.Service.startService(self)
-        p = self.parent.amqp_service.getProtocol()
+        p = self.parent.amqp_service.protocol
         if p:
             self.clientProtocolReady(p)
 
@@ -947,7 +947,7 @@ class _BaseConsumer(service.Service):
 
         logger.debug("stop service %s", self)
         p1 = self._protocol_instance
-        p2 = self.parent.amqp_service.getProtocol()
+        p2 = self.parent.amqp_service.protocol
 
         if p1 is p2 and self.consumer_tag:
             logger.debug("protocol didn't change - cancel consuming")
@@ -1074,7 +1074,7 @@ class AMQPService(object, pclient.PersistentClientService):
         return f.check(ConnectionDone) or f.check(_NotReadyForPublish)
 
     def clientConnectionLost(self, reason):
-        p = self.getProtocol()
+        p = self.protocol
         if p and p.heartbeat:
             logger.debug("stop heartbeating")
             p.heartbeat.stop()

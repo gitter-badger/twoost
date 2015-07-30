@@ -17,7 +17,7 @@ from twisted.internet.error import ConnectionClosed
 from twisted.python import failure
 from twisted.application import service
 
-from twoost import health
+from twoost import health, timed
 from twoost._misc import TheProxy
 
 import logging
@@ -111,9 +111,11 @@ class PersistentClientService(service.Service):
         self.endpoint = endpoint
         self.factory = factory
 
-        self._delayedCalls = collections.OrderedDict()
         self.reconnect_delay = self.reconnect_initial_delay
+
+        self._delayedCalls = collections.OrderedDict()
         self._reconnect_retries = 0
+        self._protocol_deferreds = []
 
         for p in [
                 'reconnect_initial_delay',
@@ -156,9 +158,7 @@ class PersistentClientService(service.Service):
                 self._connectingDeferred = None
 
         if self._protocol is not None:
-            self._protocolStoppingDeferred = defer.Deferred()
-            self._protocol.transport.loseConnection()
-            yield self._protocolStoppingDeferred
+            yield self._transportLoseConnection()
 
     # --- delayed calls
 
@@ -166,9 +166,13 @@ class PersistentClientService(service.Service):
         return f.check(ConnectionClosed)
 
     def protocolCall(self, method_name, *args, **kwargs):
-        logger.debug("on %s call %s(%r, %r)", self, method_name, args, kwargs)
 
-        p = self.getProtocol()
+        # TODO: review this.
+        # Maybe we should remove this from `pclient`
+        # and provide more generic way to make retries.
+
+        logger.debug("on %s call %s(%r, %r)", self, method_name, args, kwargs)
+        p = self.protocol
         if p:
             wm = getattr(self._protocol, method_name)
             logger.debug("on %s call %s(%r, %r)", wm, method_name, args, kwargs)
@@ -234,7 +238,7 @@ class PersistentClientService(service.Service):
 
     def _runDelayedCalls(self):
         logger.debug("run delayed calls on %s", self)
-        assert self.getProtocol()
+        assert self.protocol
         smc = list(self._delayedCalls.values())
         self._delayedCalls.clear()
         for (name, args, kwargs), d in smc:
@@ -254,6 +258,14 @@ class PersistentClientService(service.Service):
     def _clientProtocolProxyConnected(self, protocol_proxy):
         assert isinstance(protocol_proxy, _PClientProtocolProxy)
         return self.clientConnected(protocol_proxy._protocol)
+
+    def _transportLoseConnection(self):
+        if not self.protocol and not self._protocolStoppingDeferred:
+            return defer.succeed(None)
+        if not self._protocolStoppingDeferred:
+            self._protocolStoppingDeferred = defer.Deferred()
+            self._protocol.transport.loseConnection()
+        return self._protocolStoppingDeferred
 
     def clientConnected(self, protocol):
         self._protocol = protocol
@@ -275,27 +287,48 @@ class PersistentClientService(service.Service):
 
     def clientConnectionLost(self, reason):
         logger.debug("connection on %s lost: %s", self, reason)
+
         self._protocol = None
         self._cancelDisconnectCall()
-        if self._protocolStoppingDeferred is not None:
-            d = self._protocolStoppingDeferred
-            self._protocolStoppingDeferred = None
+        ds, self._protocol_deferreds = self._protocol_deferreds, []
+        for d in ds:
+            d.errback(reason)
+
+        if self._protocolStoppingDeferred:
+            d, self._protocolStoppingDeferred = self._protocolStoppingDeferred, None
             d.callback(None)
+
         self.retryConnection()
 
-    def clientProtocolFailed(self, reason):
-        self._protocol_ready = False
-        logger.error("%s protocol failed: %s", self, reason)
-
-    def getProtocol(self):
+    @property
+    def protocol(self):
         if self._protocol and self._protocol_ready:
             return self._protocol
+
+    def getProtocol(timeout=None):
+        if self._protocol and self._protocol_ready:
+            return defer.succeed(self._protocol)
+        else:
+            d = defer.Deferred()
+            timed.timeoutDeferred(d, timeout)
+            self._protocol_deferreds.append(d)
+            return d        
+
+    def clientProtocolFailed(self, reason):
+        logger.error("%s protocol failed: %s", self, reason)
+        self._protocol_ready = False
+        ds, self._protocol_deferreds = self._protocol_deferreds, []
+        for d in ds:
+            d.errback(reason)
 
     def clientProtocolReady(self, protocol):
         logger.debug("client protocol ready")
         self._protocol_ready = True
         self.resetReconnectDelay()
         self._runDelayedCalls()
+        ds, self._protocol_deferreds = self._protocol_deferreds, []
+        for d in ds:
+            d.errback(reason)
         self._scheduleDisconnect()
 
     def _clearConnectionAttempt(self, result):
@@ -322,9 +355,7 @@ class PersistentClientService(service.Service):
         self._cancelDisconnectCall()
         if self._protocol is not None:
             logger.debug("lose connection on %r", self._protocol)
-            self._protocolStoppingDeferred = defer.Deferred()
-            self._protocol.transport.loseConnection()
-            yield self._protocolStoppingDeferred
+            yield self._transportLoseConnection()
 
     def retryConnection(self, reconnect_delay=None):
         """ Have this connector connect again, after a suitable reconnect_delay."""
@@ -380,7 +411,7 @@ class PersistentClientService(service.Service):
         self._scheduleDisconnect()
 
     def checkHealth(self):
-        if not self.getProtocol():
+        if not self.protocol:
             raise Exception("reconnect in %s secs" % int(self.reconnect_delay))
 
 
