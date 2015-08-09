@@ -1047,7 +1047,7 @@ class _ConsumersContainer(service.MultiService):
         self.amqp_service = amqp_service
 
 
-class AMQPService(object, pclient.PersistentClientService):
+class AMQPService(pclient.PersistentClientService, object):
     # amqp service contains all conusumers as subservices
 
     name = 'amqp'

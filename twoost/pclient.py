@@ -70,7 +70,7 @@ class PersistentClientProtocol(protocol.Protocol):
 
 
 @zope.interface.implementer(health.IHealthChecker)
-class PersistentClientService(service.Service):
+class PersistentClientService(service.Service, object):
 
     # list of proxied methods (delegate to self.protocol)
     protocolProxiedMethods = []
