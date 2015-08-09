@@ -60,6 +60,7 @@ class WebAPIWorker(AppWorker):
                     'xmlrpc': XMLRPCResource(rpc_methods),
                     # TODO: add JSON-RPC ?
                 },
+                'workerid': Data(workerid, "text/plain"),
             },
         }
 
@@ -98,4 +99,23 @@ class StorageWorker(AppWorker):
             parallel=5,  # how many messages we can process at the same time
         )
 
+        build_manhole(app, locals())
+
+
+class HealthWorker(AppWorker):
+
+    appname = 'demoapp-health'
+    init_settings = staticmethod(init_demoapp_settings)
+    singletone = True
+
+    def init_app(self, app, workerid):
+
+        from demoapp.health import HealthResource, WebapiChecker
+
+        build_amqps(app)
+        build_dbs(app)
+        attach_service(app, WebapiChecker())
+
+        restree = {'demoapp-health': HealthResource(app)}
+        build_web(app, restree)
         build_manhole(app, locals())

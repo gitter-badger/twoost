@@ -6,6 +6,8 @@ import os
 DEBUG = True
 ADMINS = []
 
+DEMOAPP_WEBAPI_SITE = "http://demoapp.local/demoapp"
+
 WEB_ENDPOINT = os.path.expandvars("unix:/tmp/www/$TWOOST_WORKERID.sock")
 
 WORKERS_COUNT = {

@@ -4,6 +4,8 @@ import os
 
 DEBUG = True
 
+DEMOAPP_WEBAPI_SITE = None
+
 WORKERS_COUNT = {
     'demoapp-webapi': 1,
     'demoapp-dbworker': 1,
