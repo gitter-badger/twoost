@@ -112,6 +112,7 @@ class HealthWorker(AppWorker):
 
         from demoapp.health import HealthResource, WebapiChecker
 
+        # health checkers
         build_amqps(app)
         build_dbs(app)
         attach_service(app, WebapiChecker())
