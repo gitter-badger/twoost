@@ -467,12 +467,11 @@ class _AMQPProtocol(TwistedProtocolConnection, pclient.PersistentClientProtocol)
 
         rej_tasks = self._delayed_requeue_tasks.pop(consumer_tag, {})
         for dt, (t, ch) in rej_tasks.items():
+            t.cancel()
             if do_reject:
-                t.cancel()
                 logger.debug("nack message, delivery tag %r", dt)
                 ch.basic_reject(delivery_tag=dt)
             else:
-                t.cancel()
                 logger.debug("cancel nacking task, delivery tag %r", dt)
 
         logger.debug("consuming state for queue %r was cleared", queue)

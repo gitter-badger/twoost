@@ -90,8 +90,7 @@ class _PeriodicalDelayedCallService(service.Service):
                 logger.exception("cancellation error")
 
     def checkHealth(self):
-        if self._lastCallFailure:
-            self._lastCallFailure.raiseException()
+        return self._lastCallFailure
 
 
 class CrontabTimerService(_PeriodicalDelayedCallService):

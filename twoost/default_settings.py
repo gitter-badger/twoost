@@ -12,6 +12,9 @@ class DefaultSettings(Config):
     DEBUG = False
     ADMINS = []
 
+    PID_DIR = prop_lazy(
+        lambda: os.environ.get("TWOOST_PID_DIR") or os.path.expanduser("~/run"))
+
     WORKERS_COUNT = {}
     DATABASES = {}
     AMQP_CONNECTIONS = {}
@@ -30,17 +33,14 @@ class DefaultSettings(Config):
 
     HEALTHCHECK_SOCKET_MODE = 0700
 
-    EMAIL_DEFAULT_FROM = prop_lazy(
-        lambda: "{0}@{1}".format(getpass.getuser(), socket.gethostname()))
-
     EMAIL_USER = None
     EMAIL_PASSWORD = None
     EMAIL_HOST = "localhost"
     EMAIL_PORT = 25
+    EMAIL_DEFAULT_FROM = prop_lazy(
+        lambda: "{0}@{1}".format(getpass.getuser(), socket.gethostname()))
 
     LOGGING_CONFIG_INIT = 'logging.config.dictConfig'
     LOGGING = {'version': 1}
     SENTRY_DSN = None
 
-    PID_DIR = prop_lazy(
-        lambda: os.environ.get("TWOOST_PID_DIR") or os.path.expanduser("~/run"))

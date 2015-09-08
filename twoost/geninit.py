@@ -70,8 +70,9 @@ class GenInit(object):
         if not self._quiet:
             self.log_info("waiting...", end="")
 
+        initial_step = 0.1
         end_time = time.time() + timeout
-        step = 0.2
+        step = initial_step
         last_dot_time = time.time()
 
         while processes and time.time() <= end_time:
@@ -84,7 +85,7 @@ class GenInit(object):
             try:
                 pr.wait(timeout=step)
             except psutil.TimeoutExpired:
-                step = min(step, end_time - time.time())
+                step = min(initial_step, end_time - time.time())
             except psutil.NoSuchProcess:
                 step = 0
                 pass

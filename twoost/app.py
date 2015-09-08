@@ -57,7 +57,7 @@ def build_timer(app, when, callback):
 
     if isinstance(when, (list, tuple)):
         assert len(when) == 5
-        when = " ".join(when)
+        when = " ".join(map(str, when))
 
     try:
         interval = float(when)
