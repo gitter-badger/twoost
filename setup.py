@@ -10,7 +10,7 @@ except ImportError:
     from setuptools import setup
 
 setup(
-    name="Twoost",
+    name="twoost",
     version=twoost.__version__,
     author="Andrei Zhlobich",
     author_email="a.zhlobich@gmail.com",
