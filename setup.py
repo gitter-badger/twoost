@@ -24,8 +24,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.x',
-        'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     install_requires=[
