@@ -305,7 +305,7 @@ class PersistentClientService(service.Service, object):
         if self._protocol and self._protocol_ready:
             return self._protocol
 
-    def getProtocol(timeout=None):
+    def getProtocol(self, timeout=None):
         if self._protocol and self._protocol_ready:
             return defer.succeed(self._protocol)
         else:
