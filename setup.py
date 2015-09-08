@@ -10,19 +10,22 @@ except ImportError:
     from setuptools import setup
 
 setup(
-    name='twoost',
+    name="Twoost",
     version=twoost.__version__,
-    author="a_zhlobich",
+    author="Andrei Zhlobich",
+    author_email="a.zhlobich@gmail.com",
     packages=['twoost'],
+    description="Twoost is a collection of tools and helpers for the Twisted framework.",
     platforms=['Independant'],
     classifiers=[
         'Development Status :: 4 - Beta',
+        'Framework :: Twisted',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python',
         'Programming Language :: Python :: 2.x',
+        'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     install_requires=[
