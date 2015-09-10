@@ -59,6 +59,7 @@ class GenInit(object):
         self._quiet = False
         self._remove_stale_pidfiles = False
         self._process_cache = {}
+        self._flock = None
 
     def wait_for_processes(self, processes, timeout):
 
@@ -285,7 +286,10 @@ class GenInit(object):
         return p
 
     def read_worker_health(self, workerid, timeout=10):
-        return None
+        pass
+
+    def run_worker_manhole(self, workerid, timeout=10):
+        pass
 
     # --- commands
 
@@ -571,6 +575,29 @@ class GenInit(object):
             self.log_info("worker %s is down!", worker_name)
             return False
 
+    def command_manhole(self, workerid=None, **kwargs):
+
+        if workerid is None:
+            active_workerids = set(self.load_workerids_from_pidfiles())
+            if len(active_workerids) > 1:
+                self.log_info("you must provide worker id!")
+                return False
+            elif not active_workerids:
+                self.log_info("there is no running workers!")
+                return False
+            workerid = next(iter(active_workerids))
+
+        self.log_debug("connect to manhole of worker %s", workerid)
+        np = self.worker_process(workerid)
+        if not np:
+            self.log_info("worker %s is down!", workerid)
+            return False
+
+        if self._flock and self._flock.locked:
+            self._flock.unlock()
+
+        return self.run_worker_manhole(workerid, **kwargs)
+
     def create_parser(self):
         parser = argparse.ArgumentParser()
 
@@ -634,6 +661,9 @@ class GenInit(object):
         p_worker = argparse.ArgumentParser(add_help=False)
         p_worker.add_argument('workerid', type=self.coerce_workerid, help="worker id")
 
+        p_manhole = argparse.ArgumentParser(add_help=False)
+        p_manhole.add_argument('workerid', type=self.coerce_workerid, nargs='?', help="worker id")
+
         # subparsers
         sp.add_parser('start', parents=[p_start, p_all_workers])
         sp.add_parser('stop', parents=[p_stop, p_all_workers])
@@ -642,6 +672,8 @@ class GenInit(object):
         sp.add_parser('restart', parents=[p_start, p_stop, p_all_workers, p_status])
         sp.add_parser('info', parents=[p_info, p_all_workers])
         sp.add_parser('health', parents=[p_health, p_all_workers])
+
+        sp.add_parser('manhole', parents=[p_manhole])
 
         if not self.singletone:
             sp.add_parser('worker_start', parents=[p_worker, p_start])
@@ -705,7 +737,7 @@ class GenInit(object):
     def main(self, args=None):
 
         parser = self.create_parser()
-        lock = self._make_flock()
+        self._flock = self._make_flock()
 
         parsed_args = parser.parse_args(args)
         self.process_command_args(parsed_args)
@@ -716,11 +748,12 @@ class GenInit(object):
 
         self.print_header()
         self.create_dirs()
-        self._acquire_flock(lock)
+        self._acquire_flock(self._flock)
         try:
             x = command(**vars(parsed_args))
         finally:
-            lock.unlock()
+            if self._flock and self._flock.locked:
+                self._flock.unlock()
 
         self.print_footer()
         self.exit(int(not x))

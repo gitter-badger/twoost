@@ -66,9 +66,6 @@ class WebAPIWorker(AppWorker):
 
         build_web(app, restree)
 
-        # autodisabled unless settings.DEBUG switched on
-        build_manhole(app, locals())
-
 
 class StorageWorker(AppWorker):
 
@@ -99,8 +96,6 @@ class StorageWorker(AppWorker):
             parallel=5,  # how many messages we can process at the same time
         )
 
-        build_manhole(app, locals())
-
 
 class HealthWorker(AppWorker):
 
@@ -119,4 +114,3 @@ class HealthWorker(AppWorker):
 
         restree = {'demoapp-health': HealthResource(app)}
         build_web(app, restree)
-        build_manhole(app, locals())

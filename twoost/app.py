@@ -3,6 +3,7 @@
 from __future__ import print_function, division, absolute_import
 
 import os
+import stat
 
 from twisted.internet import endpoints, defer, reactor, task
 from twisted.application import internet, service
@@ -34,10 +35,10 @@ __all__ = [
 
 # -- common
 
-def attach_service(app, s):
-    logger.info("attach service %s to application", s)
-    s.setServiceParent(app)
-    return s
+def attach_service(parent_service, child_service):
+    logger.info("attach service %s to parent %s", child_service, parent_service)
+    child_service.setServiceParent(parent_service)
+    return child_service
 
 
 def react_app(app, main, argv=()):
@@ -159,6 +160,7 @@ def build_manhole(app, namespace=None):
 
     # only '0600' mode allowed here!
     ss = UNIXServer(address=socket_file, factory=f, mode=0600, wantPID=1)
+    ss.setName('manhole')
 
     return attach_service(app, ss)
 
@@ -216,14 +218,26 @@ class AppWorker(geninit.Worker):
     def create_app(self, workerid):
         app = service.Application(workerid)
         app.workerid = workerid
-        self.crte_app(app, workerid)
+        self._preinit_app(app, workerid)
         self.init_app(app, workerid)
+        self._postinit_app(app, workerid)
         return app
 
-    def crte_app(self, app, workerid):
+    def _preinit_app(self, app, workerid):
         self.init_settings()
         self.init_logging(workerid)
         build_health(app)
+
+    def _postinit_app(self, app, workerid):
+        self._maybe_build_manhole(app)
+
+    def _maybe_build_manhole(self, app):
+        try:
+            manhole_s = service.IServiceCollection(app).getServiceNamed('manhole')
+        except KeyError:
+            manhole_s = None
+        if not manhole_s:
+            build_manhole(app)
 
     def read_worker_health(self, workerid, timeout=10):
         from twoost.health import parseServicesHealth
@@ -231,6 +245,24 @@ class AppWorker(geninit.Worker):
         sp = os.path.join(settings.HEALTHCHECK_SOCKET_DIR, workerid)
         body = _misc.slurp_unix_socket(sp, timeout=timeout)
         return parseServicesHealth(body)
+
+    def run_worker_manhole(self, workerid, **kwargs):
+
+        from twoost.conf import settings
+        from twoost.manhole import _telnet_unix_client
+
+        self.init_settings()
+        socket_file = os.path.join(settings.MANHOLE_SOCKET_DIR, workerid)
+
+        if not os.path.exists(socket_file):
+            self.log_info("socket file %s does not exists", socket_file)
+            return False
+        elif not stat.S_ISSOCK(os.stat(socket_file).st_mode):
+            self.log_info("file %s is not an unix socket", socket_file)
+            return False
+        else:
+            _telnet_unix_client(socket_file)
+            return True
 
     def init_settings(self):
         raise NotImplementedError
