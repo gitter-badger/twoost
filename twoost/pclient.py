@@ -125,7 +125,7 @@ class PersistentClientService(service.Service, object):
                 'reconnect_max_retries',
                 'disconnect_delay',
                 'callretry_delay',
-                'callretry_delay',
+                'callretry_max_count',
         ]:
             if p in kwargs:
                 setattr(self, p, kwargs[p])
@@ -174,7 +174,7 @@ class PersistentClientService(service.Service, object):
         logger.debug("on %s call %s(%r, %r)", self, method_name, args, kwargs)
         p = self.protocol
         if p:
-            wm = getattr(self._protocol, method_name)
+            wm = getattr(p, method_name)
             logger.debug("on %s call %s(%r, %r)", wm, method_name, args, kwargs)
             d = defer.maybeDeferred(wm, *args, **kwargs)
             if self.callretry_delay:
@@ -260,7 +260,7 @@ class PersistentClientService(service.Service, object):
         return self.clientConnected(protocol_proxy._protocol)
 
     def _transportLoseConnection(self):
-        if not self.protocol and not self._protocolStoppingDeferred:
+        if not self._protocol and not self._protocolStoppingDeferred:
             return defer.succeed(None)
         if not self._protocolStoppingDeferred:
             self._protocolStoppingDeferred = defer.Deferred()
@@ -268,7 +268,10 @@ class PersistentClientService(service.Service, object):
         return self._protocolStoppingDeferred
 
     def clientConnected(self, protocol):
+
+        # protocol may be used to abort connection in `stopService`
         self._protocol = protocol
+        self._protocol_ready = False
 
         if IPersistentClientProtocol.providedBy(protocol):
             prd = protocol.notifyProtocolReady()
@@ -309,8 +312,7 @@ class PersistentClientService(service.Service, object):
         if self._protocol and self._protocol_ready:
             return defer.succeed(self._protocol)
         else:
-            d = defer.Deferred()
-            timed.timeoutDeferred(d, timeout)
+            d = timed.timeoutDeferred(defer.Deferred(), timeout)
             self._protocol_deferreds.append(d)
             return d        
 
@@ -324,11 +326,12 @@ class PersistentClientService(service.Service, object):
     def clientProtocolReady(self, protocol):
         logger.debug("client protocol ready")
         self._protocol_ready = True
+        self._protocol = protocol
         self.resetReconnectDelay()
         self._runDelayedCalls()
         ds, self._protocol_deferreds = self._protocol_deferreds, []
         for d in ds:
-            d.errback(reason)
+            d.callback(protocol)
         self._scheduleDisconnect()
 
     def _clearConnectionAttempt(self, result):

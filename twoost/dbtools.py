@@ -98,7 +98,6 @@ class SQL(tuple):
         sql, args = self
         return "SQL{0!r}".format((sql,) + args)
 
-    @pure_db_operation
     def execute(self, txn):
         sql, args = self
         txn.execute(sql, args)

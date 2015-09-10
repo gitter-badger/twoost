@@ -22,7 +22,7 @@ class TimeoutError(defer.CancelledError):
 def timeoutDeferred(d, timeout=120, clock=None):
     assert isinstance(d, defer.Deferred)
 
-    if not timeout:
+    if timeout is None:
         return d
 
     if clock is None:
