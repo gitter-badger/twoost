@@ -35,10 +35,12 @@ __all__ = [
 
 # -- common
 
-def attach_service(parent_service, child_service):
-    logger.info("attach service %s to parent %s", child_service, parent_service)
-    child_service.setServiceParent(parent_service)
-    return child_service
+def attach_service(parent, child, name=None):
+    logger.info("attach service %s to parent %s", child, parent)
+    if name:
+        child.setName(name)
+    child.setServiceParent(parent)
+    return child
 
 
 def react_app(app, main, argv=()):
@@ -54,7 +56,7 @@ def react_app(app, main, argv=()):
     task.react(appless_main)
 
 
-def build_timer(app, when, callback):
+def build_timer(app, when, callback, name=None):
 
     if isinstance(when, (list, tuple)):
         assert len(when) == 5
@@ -67,19 +69,20 @@ def build_timer(app, when, callback):
 
     from twoost import cron
     logger.debug("build timer %r, callback %r", when, callback)
+
     if interval is not None:
-        return attach_service(app, cron.IntervalTimerService(interval, callback))
+        return attach_service(app, cron.IntervalTimerService(interval, callback), name)
     else:
-        return attach_service(app, cron.CrontabTimerService(when, callback))
+        return attach_service(app, cron.CrontabTimerService(when, callback), name)
 
 
 # -- generic server & client
 
-def build_server(app, factory, endpoint):
+def build_server(app, factory, endpoint, name=None):
     logger.debug("serve %s on %s", factory, endpoint)
     ept = endpoints.serverFromString(reactor, endpoint)
     ss = internet.StreamServerEndpointService(ept, factory)
-    return attach_service(app, ss)
+    return attach_service(app, ss, name)
 
 
 def build_client(app, client_factory, endpoint, params=None):
@@ -123,7 +126,7 @@ def build_web(app, site, prefix=None, endpoint=None):
         filename = endpoint[5:]
         mkdir_p(os.path.dirname(filename))
     site = web.buildSite(site, prefix)
-    return build_server(app, site, endpoint)
+    return build_server(app, site, endpoint, 'web')
 
 
 def build_rpcps(app, active_proxies=None):
@@ -133,36 +136,33 @@ def build_rpcps(app, active_proxies=None):
     return attach_service(app, rpcproxy.RPCProxiesCollectionService(proxies))
 
 
-def build_manhole(app, namespace=None):
+def build_manhole(app, namespace=None, add_defaults=True):
 
     if not settings.DEBUG:
         logger.debug("don't create manhole server - production mode")
         return
 
     import twisted
-    from twoost.manhole import AnonymousShellFactory
-    from twisted.application.internet import UNIXServer
+    import twoost
+
+    from twoost.manhole import ManholeService, ServiceScanner
 
     workerid = app.workerid
     socket_file = os.path.join(settings.MANHOLE_SOCKET_DIR, workerid)
     mkdir_p(os.path.dirname(socket_file))
 
     namespace = dict(namespace or {})
-    if not namespace:
+    if add_defaults:
         namespace.update({
-            'twisted': twisted,
             'app': app,
+            'ss': ServiceScanner(app),
+            'twoost': twoost,
+            'twisted': twisted,
             'settings': settings,
         })
-    f = AnonymousShellFactory(namespace)
 
     logger.info("serve shell on %r socket", socket_file)
-
-    # only '0600' mode allowed here!
-    ss = UNIXServer(address=socket_file, factory=f, mode=0600, wantPID=1)
-    ss.setName('manhole')
-
-    return attach_service(app, ss)
+    return attach_service(app, ManholeService(socket_file, namespace), "manhole")
 
 
 def build_health(app):
@@ -179,6 +179,7 @@ def build_health(app):
 
     logger.debug("serve health checker on %r socket", socket_file)
     ss = UNIXServer(address=socket_file, factory=fct, mode=mode, wantPID=1)
+    ss.setName("health")
 
     return attach_service(app, ss)
 
