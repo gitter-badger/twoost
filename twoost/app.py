@@ -188,6 +188,13 @@ def build_memcache(app, active_servers=None):
 
 # --- integration with 'geninit'
 
+def _get_service(app, name):
+    try:
+        return service.IServiceCollection(app).getServiceNamed('manhole')
+    except KeyError:
+        return
+
+
 class AppWorker(geninit.Worker):
 
     healthcheck_timeout = 20
@@ -204,7 +211,7 @@ class AppWorker(geninit.Worker):
     def workers(self):
         return settings.WORKERS_COUNT.get(self.appname, 1)
 
-    def init_logging(self, workerid):
+    def init_logging(self):
         log.setup_logging(self.appname)
 
     def main(self, args=None):
@@ -221,18 +228,18 @@ class AppWorker(geninit.Worker):
 
     def _preinit_app(self, app, workerid):
         self.init_settings()
-        self.init_logging(workerid)
-        build_health(app)
+        self.init_logging()
 
     def _postinit_app(self, app, workerid):
         self._maybe_build_manhole(app)
+        self._maybe_build_health(app)
+
+    def _maybe_build_health(self, app):
+        if not _get_service(app, 'health'):
+            build_health(app)
 
     def _maybe_build_manhole(self, app):
-        try:
-            manhole_s = service.IServiceCollection(app).getServiceNamed('manhole')
-        except KeyError:
-            manhole_s = None
-        if not manhole_s:
+        if not _get_service(app, 'manhole'):
             build_manhole(app)
 
     def read_worker_health(self, workerid, timeout=10):
