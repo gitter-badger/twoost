@@ -54,12 +54,15 @@ class GenInit(object):
         raise NotImplementedError
 
     def __init__(self):
+
         assert not self.singletone or self.workers == 1
+
+        self._used = False
         self._verbose = False
         self._quiet = False
         self._remove_stale_pidfiles = False
         self._process_cache = {}
-        self._flock = None
+        self._make_flock()
 
     def wait_for_processes(self, processes, timeout):
 
@@ -593,9 +596,8 @@ class GenInit(object):
             self.log_info("worker %s is down!", workerid)
             return False
 
-        if self._flock and self._flock.locked:
-            self._flock.unlock()
-
+        # our manhole shell should not block another geninit cmds
+        self._release_flock()
         return self.run_worker_manhole(workerid, **kwargs)
 
     def create_parser(self):
@@ -704,10 +706,11 @@ class GenInit(object):
 
     def _make_flock(self):
         fn = os.path.join(self.pid_dir, self.appname + ".lock")
-        return lockfile.FilesystemLock(fn)
+        self._flock = lockfile.FilesystemLock(fn)
 
-    def _acquire_flock(self, lock):
+    def _acquire_flock(self):
 
+        lock = self._flock
         if lock.lock():
             self.log_debug("flock has been acquired")
             return
@@ -734,10 +737,17 @@ class GenInit(object):
         self.print(" fail")
         self.log_error("there is another active geninit process")
 
+    def _release_flock(self):
+        if self._flock and self._flock.locked:
+            self._flock.unlock()
+
     def main(self, args=None):
 
+        if self._used:
+            raise Exception("getinit should be used exactly once")
+        self._used = True
+
         parser = self.create_parser()
-        self._flock = self._make_flock()
 
         parsed_args = parser.parse_args(args)
         self.process_command_args(parsed_args)
@@ -748,12 +758,11 @@ class GenInit(object):
 
         self.print_header()
         self.create_dirs()
-        self._acquire_flock(self._flock)
+        self._acquire_flock()
         try:
             x = command(**vars(parsed_args))
         finally:
-            if self._flock and self._flock.locked:
-                self._flock.unlock()
+            self._release_flock()
 
         self.print_footer()
         self.exit(int(not x))

@@ -1,5 +1,7 @@
 # coding: utf-8
 
+from __future__ import print_function
+
 import os
 import time
 import subprocess
@@ -26,6 +28,8 @@ __all__ = [
     'ManholeService',
 ]
 
+_ManholeShell = ColoredManhole
+
 
 class ManholeService(UNIXServer):
 
@@ -49,8 +53,8 @@ class ManholeService(UNIXServer):
         return TelnetTransport(
             TelnetBootstrapProtocol,
             insults.ServerProtocol,
-            ColoredManhole,
-            self.namespace,
+            _ManholeShell,
+            dict(self.namespace),
         )
 
 
@@ -93,62 +97,124 @@ class ServiceScanner(Mapping):
         return "<ServiceScanner: %r>" % self.scan()
 
 
-# -- client
+# -- manhole client
 
-def _main_forward_unix_to_tcp():
 
-    # `telnet` on most linuxes doesn't support unix domain sockets
-    # use separate process just to commute `unix` <-> `tcp`
+def exec_manhole_client(sock_file):
+    if _check_telnet_exists():
+        _exec_telnet_unix_client(sock_file)
+    else:
+        print("!command 'telnet' is not found", file=sys.stderr)
+        time.sleep(1)
+        _exec_simple_unix_client(sock_file)
 
-    _, sock_file, port_write_to_file = sys.argv
 
-    src_listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    src_listen.settimeout(100)
-    src_listen.bind(('127.0.0.1', 0))
+def _check_telnet_exists():
+    FNULL = open(os.devnull, 'w')
+    try:
+        return not subprocess.call(["telnet", "-V"], stdout=FNULL, stderr=subprocess.STDOUT)
+    except OSError:
+        return False
 
-    port = src_listen.getsockname()[-1]
-    with open(port_write_to_file, 'w') as f:
-        f.write(str(port))
 
-    src_listen.listen(1)
-    in_s, _ = src_listen.accept()
-    out_s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    out_s.connect(sock_file)
+def _commute_sockets(sock1, sock2):
+    try:
+        while 1:
+            toread, _, _ = select.select([sock1, sock2], [], [])
+            for sa in toread:
+                data = sa.recv(4096)
+                if not data:
+                    return
+                sb = sock1 if sa is sock2 else sock2
+                sb.send(data)
+    except KeyboardInterrupt:
+        pass
 
-    print("forward %r -> port %r", sock_file, port)
+
+def _exec_simple_unix_client(sock_file):
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.connect(sock_file)
 
     try:
         while 1:
-            socket_list = [in_s, out_s]
-            read_sockets, _, _ = select.select(socket_list, [], [])
-            for sock in read_sockets:
-                data = sock.recv(4096)
-                if not data:
-                    return
-                socki = in_s if sock is out_s else out_s
-                socki.send(data)
+            toread, _, _ = select.select([sys.stdin, sock], [], [])
+            for sa in toread:
+                if sa is sock:
+                    data = sa.recv(4096)
+                    if not data:
+                        break
+                    sys.stdout.write(data)
+                    sys.stdout.flush()
+                elif sa is sys.stdin:
+                    data = sa.readline()
+                    sock.send(data)
+                else:
+                    raise Exception("assertion")
+
     except KeyboardInterrupt:
-        pass
+        sys.exit(0)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    else:
+        sys.exit(0)
     finally:
-        src_listen.close()
-        in_s.close()
-        out_s.close()
+        sock.close()
 
 
-def _telnet_unix_client(sock_file):
+def _run_forward_unix_to_tcp():
+    _, sock_file, port_file = sys.argv
+    _forward_unix_to_tcp(sock_file, port_file)
+
+
+def _forward_unix_to_tcp(sock_file, port_file):
+
+    # `telnet` on most linuxes doesn't support unix domain sockets
+    # use separate process just to commute `unix` <-> `random tcp port`
+
+    _, sock_file, port_file = sys.argv
+    s1_listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s1_listen.settimeout(10)
+    s1_listen.bind(("127.0.0.1", 0))
+
+    port = s1_listen.getsockname()[-1]
+    with open(port_file, 'w') as f:
+        f.write(str(port))
+
+    try:
+        s1_listen.listen(0)
+        sock1, _ = s1_listen.accept()
+        s1_listen.close()
+
+        sock2 = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock2.connect(sock_file)
+
+        _commute_sockets(sock1, sock2)
+
+    finally:
+        s1_listen.close()
+        sock1.close()
+        sock2.close()
+
+
+def _exec_telnet_unix_client(sock_file):
 
     port_file = tempfile.mktemp(suffix="_twoost_port_box")
 
+    p = None
     try:
         p = subprocess.Popen([
             "python", "-c",
-            "from twoost.manhole import _main_forward_unix_to_tcp as f; f()",
+            "from twoost.manhole import _run_forward_unix_to_tcp as f; f()",
             sock_file,
-            port_file
+            port_file,
         ])
 
-        for i in range(100):
-            time.sleep(0.01)
+        # wait port number for 5 secons
+        for i in range(1000):
+            time.sleep(0.05)
             if os.path.exists(port_file):
                 break
         else:
@@ -157,14 +223,9 @@ def _telnet_unix_client(sock_file):
 
         with open(port_file) as f:
             port = int(f.readline())
+        os.unlink(port_file)
 
-        subprocess.call([
-            "telnet",
-            "127.0.0.1",
-            str(port),
-        ])
+        os.execlp("telnet", "manhole", "-L", "-E", "127.0.0.1", str(port))
 
     except KeyboardInterrupt:
         pass
-    finally:
-        os.unlink(port_file)

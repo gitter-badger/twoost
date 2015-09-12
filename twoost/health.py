@@ -4,6 +4,7 @@ import zope.interface
 
 from twisted.internet import defer, protocol
 from twisted.application import service
+from twisted.application.internet import UNIXServer
 
 from twoost import timed
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     'IHealthChecker',
-    'HealthCheckFactory',
+    'HealthCheckService',
 ]
 
 
@@ -133,3 +134,21 @@ class HealthCheckFactory(protocol.Factory):
 
     def __init__(self, app):
         self.app = app
+
+
+class HealthCheckService(UNIXServer):
+
+    name = "health"
+    factory = HealthCheckFactory
+
+    def __init__(self, socket_file, app, **kwargs):
+
+        self.app = app
+        self.factory = HealthCheckFactory(app)
+
+        UNIXServer.__init__(
+            self,
+            address=socket_file,
+            factory=self.factory,
+            **kwargs
+        )

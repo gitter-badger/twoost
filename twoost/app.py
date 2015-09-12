@@ -159,6 +159,7 @@ def build_manhole(app, namespace=None, add_defaults=True):
             'twoost': twoost,
             'twisted': twisted,
             'settings': settings,
+            'workerid': workerid,
         })
 
     logger.info("serve shell on %r socket", socket_file)
@@ -167,21 +168,15 @@ def build_manhole(app, namespace=None, add_defaults=True):
 
 def build_health(app):
 
-    from twoost.health import HealthCheckFactory
-    from twisted.application.internet import UNIXServer
+    from twoost.health import HealthCheckService
 
     mode = settings.HEALTHCHECK_SOCKET_MODE
     workerid = app.workerid
     socket_file = os.path.join(settings.HEALTHCHECK_SOCKET_DIR, workerid)
     mkdir_p(os.path.dirname(socket_file))
 
-    fct = HealthCheckFactory(app)
-
     logger.debug("serve health checker on %r socket", socket_file)
-    ss = UNIXServer(address=socket_file, factory=fct, mode=mode, wantPID=1)
-    ss.setName("health")
-
-    return attach_service(app, ss)
+    return attach_service(app, HealthCheckService(socket_file, app, mode=mode, wantPID=1))
 
 
 def build_memcache(app, active_servers=None):
@@ -250,7 +245,7 @@ class AppWorker(geninit.Worker):
     def run_worker_manhole(self, workerid, **kwargs):
 
         from twoost.conf import settings
-        from twoost.manhole import _telnet_unix_client
+        from twoost.manhole import exec_manhole_client
 
         self.init_settings()
         socket_file = os.path.join(settings.MANHOLE_SOCKET_DIR, workerid)
@@ -262,8 +257,8 @@ class AppWorker(geninit.Worker):
             self.log_info("file %s is not an unix socket", socket_file)
             return False
         else:
-            _telnet_unix_client(socket_file)
-            return True
+            exec_manhole_client(socket_file)
+            raise Exception("should not be there")
 
     def init_settings(self):
         raise NotImplementedError
