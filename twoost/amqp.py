@@ -163,7 +163,6 @@ if msgpack:
 
 
 def deserialize(data, content_type):
-    logger.debug("deserialize data %r, content_type %r", data, content_type)
     if not content_type:
         return data
     s = MESSAGE_SERIALIZERS[content_type.lower()]
@@ -171,7 +170,6 @@ def deserialize(data, content_type):
 
 
 def serialize(data, content_type):
-    logger.debug("serialize data %r, content_type %r", data, content_type)
     if not content_type:
         return data
     s = MESSAGE_SERIALIZERS[content_type.lower()]
@@ -481,21 +479,17 @@ class _AMQPProtocol(TwistedProtocolConnection, pclient.PersistentClientProtocol)
         ch, deliver, props, body = msg
         delivery_tag = deliver.delivery_tag
         amqp_msg = AMQPMessage(deliver=deliver, properties=props, body=body)
-        logger.debug(
-            "incoming message, body %r, queue %r, delivery_tag %r",
-            body, queue, delivery_tag)
+        logger.debug("received %s", amqp_msg)
 
         d = defer.maybeDeferred(callback, amqp_msg)
-        logger.debug(
-            "incoming message, body %r, queue %r,"
-            "delivery_tag %r - callback invoked...",
-            body, queue, delivery_tag)
+        logger.debug("run callback for dtag %r,", delivery_tag)
 
         def err(e):
-            logger.error("fail to process msg %r - error %s", msg, e)
+            ei = (e.type, e.value, e.tb)
+            logger.error("fail to process %r", msg, exc_info=ei)
             if no_ack:
                 return None
-            if e.check(ConnectionDone):
+            elif e.check(ConnectionDone):
                 logger.debug("no active connection - we can't nack message")
             else:
                 self._handleFailedIncomingMessage(ch, amqp_msg)
@@ -514,7 +508,7 @@ class _AMQPProtocol(TwistedProtocolConnection, pclient.PersistentClientProtocol)
         consumer_tag = msg.consumer_tag
         redelivered = msg.redelivered
 
-        cstate = self._consumer_state[consumer_tag]
+        cstate = self._consumer_state.get(consumer_tag)
         if not cstate:
             logger.debug("no consumer state for ct %r - skip msg failure", consumer_tag)
             return
@@ -986,7 +980,6 @@ class _BaseConsumer(service.Service):
         self._consume_deferred = None
 
     def onMessage(self, msg):
-        logger.debug("receive message %r", msg)
 
         self._active_callbacks_cnt += 1
         cid = self._active_callbacks_cnt
