@@ -265,7 +265,6 @@ class AppWorker(geninit.Worker):
             return False
         else:
             exec_manhole_client(socket_file)
-            raise Exception("should not be there")
 
     def init_settings(self):
         raise NotImplementedError

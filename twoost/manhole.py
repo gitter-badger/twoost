@@ -105,14 +105,14 @@ def exec_manhole_client(sock_file):
         _exec_telnet_unix_client(sock_file)
     else:
         print("!command 'telnet' is not found", file=sys.stderr)
-        time.sleep(1)
+        time.sleep(2)
         _exec_simple_unix_client(sock_file)
 
 
 def _check_telnet_exists():
-    FNULL = open(os.devnull, 'w')
     try:
-        return not subprocess.call(["telnet", "-V"], stdout=FNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(["telnet"]).kill()
+        return True
     except OSError:
         return False
 
@@ -199,13 +199,21 @@ def _forward_unix_to_tcp(sock_file, port_file):
         sock2.close()
 
 
+def _maybe_kill(p):
+    try:
+        if p:
+            p.kill()
+    except OSError:
+        pass
+
+
 def _exec_telnet_unix_client(sock_file):
 
     port_file = tempfile.mktemp(suffix="_twoost_port_box")
 
-    p = None
+    p1, p2 = None, None
     try:
-        p = subprocess.Popen([
+        p1 = subprocess.Popen([
             "python", "-c",
             "from twoost.manhole import _run_forward_unix_to_tcp as f; f()",
             sock_file,
@@ -218,14 +226,18 @@ def _exec_telnet_unix_client(sock_file):
             if os.path.exists(port_file):
                 break
         else:
-            p.kill()
+            p1.kill()
             raise Exception("unable to load tcp port")
 
         with open(port_file) as f:
             port = int(f.readline())
         os.unlink(port_file)
 
-        os.execlp("telnet", "manhole", "-L", "-E", "127.0.0.1", str(port))
+        subprocess.call(["telnet", "-L", "-E", "127.0.0.1", str(port)])
 
     except KeyboardInterrupt:
         pass
+
+    finally:
+        _maybe_kill(p1)
+        subprocess.call(["tput", "reset"])
