@@ -190,7 +190,7 @@ def build_memcache(app, active_servers=None):
 
 def _get_service(app, name):
     try:
-        return service.IServiceCollection(app).getServiceNamed('manhole')
+        return service.IServiceCollection(app).getServiceNamed(name)
     except KeyError:
         return
 
@@ -247,7 +247,8 @@ class AppWorker(geninit.Worker):
         self.init_settings()
         sp = os.path.join(settings.HEALTHCHECK_SOCKET_DIR, workerid)
         body = _misc.slurp_unix_socket(sp, timeout=timeout)
-        return parseServicesHealth(body)
+        if body is not None:
+            return parseServicesHealth(body)
 
     def run_worker_manhole(self, workerid, **kwargs):
 
