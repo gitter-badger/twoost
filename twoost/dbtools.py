@@ -57,9 +57,12 @@ class SQL(tuple):
     """
 
     def __new__(cls, sql, *args):
-        if not args and isinstance(sql, cls):
+        if isinstance(sql, cls):
+            if args:
+                raise ValueError("Can't attach arguments to SQL object", sql, args)
             return sql
-        assert isinstance(sql, basestring)
+        if not isinstance(sql, basestring):
+            raise ValueError("SQL expression should be `str`", sql)
         return tuple.__new__(cls, (str(sql), args))
 
     @classmethod
@@ -76,13 +79,14 @@ class SQL(tuple):
 
     @classmethod
     def make(cls, *sqls):
-        return SQL(" ").join(sqls)
+        return cls(" ").join(sqls)
 
     def join(self, sqls):
         if not sqls:
             return SQL("")
-        acc = sqls[0]
-        for s in sqls[1:]:
+        sqls = iter(sqls)
+        acc = next(sqls)
+        for s in sqls:
             acc = acc + self + s
         return acc
 
