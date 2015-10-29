@@ -22,7 +22,7 @@ class DBDaoService(DBUsingMixin, Service):
         # do any required initialization here ...
 
     def delete_event_by_id(self, event_id):
-        return self.db_operation("DELETE FROM events WHERE id = ?", event_id)
+        return self.db_execute("DELETE FROM events WHERE id = ?", event_id)
 
     def get_event_by_id(self, event_id):
         return self.db_query_one("SELECT * FROM events WHERE id = ?", event_id)
@@ -31,6 +31,6 @@ class DBDaoService(DBUsingMixin, Service):
         return self.db_query_all("SELECT * FROM events WHERE created > ?", dt)
 
     def insert_new_event(self, event):
-        return self.db_operation(
+        return self.db_execute(
             "INSERT INTO events (id, payload, created) VALUES (?, ?, ?)",
             event['id'], event['payload'], datetime.datetime.now())
